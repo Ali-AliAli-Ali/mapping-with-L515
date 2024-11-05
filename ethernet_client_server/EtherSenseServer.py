@@ -11,7 +11,7 @@ import cv2
 
 print('Number of arguments:', len(sys.argv), 'arguments.')
 print('Argument List:', str(sys.argv))
-mc_ip_address = '224.0.0.1'
+mc_ip_address = '172.20.10.10'
 port = 1024
 chunk_size = 4096
 #rs.log_to_console(rs.log_severity.debug)
@@ -22,13 +22,13 @@ def getDepthAndTimestamp(pipeline, depth_filter):
     frames.keep()
     depth = frames.get_depth_frame()
     if depth:
-	depth2 = depth_filter.process(depth)
-	# take owner ship of the frame for further processing
-	depth2.keep()
-	# represent the frame as a numpy array
+        depth2 = depth_filter.process(depth)
+        # take owner ship of the frame for further processing
+        depth2.keep()
+        # represent the frame as a numpy array
         depthData = depth2.as_frame().get_data()        
-	depthMat = np.asanyarray(depthData)
-	ts = frames.get_timestamp()
+        depthMat = np.asanyarray(depthData)
+        ts = frames.get_timestamp()
         return depthMat, ts
     else:
         return None, None
@@ -53,7 +53,7 @@ class EtherSenseServer(asyncore.dispatcher):
     def __init__(self, address):
         asyncore.dispatcher.__init__(self)
         print("Launching Realsense Camera Server")
-	try:
+        try:
             self.pipeline = openPipeline()
         except:
             print("Unexpected error: ", sys.exc_info()[1])
