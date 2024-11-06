@@ -32,9 +32,10 @@ def getDepthAndTimestamp(pipeline, depth_filter):
         return depthMat, ts
     else:
         return None, None
+
 def openPipeline():
     cfg = rs.config()
-    cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+    cfg.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
     pipeline = rs.pipeline()
     pipeline_profile = pipeline.start(cfg)
     sensor = pipeline_profile.get_device().first_depth_sensor()
@@ -84,7 +85,7 @@ class EtherSenseServer(asyncore.dispatcher):
             # include the current timestamp for the frame
                 ts = struct.pack('<d', timestamp)
             # for the message for transmission
-                self.frame_data = ''.join([length, ts, data])
+                self.frame_data = b''.join([length, ts, data])
 
     def handle_write(self):
 	# first time the handle_write is called
