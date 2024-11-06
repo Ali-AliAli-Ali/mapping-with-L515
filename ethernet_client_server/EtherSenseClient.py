@@ -9,15 +9,15 @@ import struct
 import cv2
 
 
-print('Number of arguments:', len(sys.argv), 'arguments.')
-print('Argument List:', str(sys.argv))
-mc_ip_address = '172.20.10.10'
-local_ip_address = '172.20.10.2'
+print("Number of arguments:", len(sys.argv), "arguments.")
+print("Argument List:", str(sys.argv))
+mc_ip_address = "172.20.10.10"
+local_ip_address = "172.20.10.2"
 port = 1024
 chunk_size = 4096
 
 def main(argv):
-    multi_cast_message(mc_ip_address, port, 'EtherSensePing')
+    multi_cast_message(mc_ip_address, port, "EtherSensePing")
         
 
 #UDP client for each camera server 
@@ -29,7 +29,7 @@ class ImageClient(asyncore.dispatcher):
         self.buffer = bytearray()
         self.windowName = self.port
         # open cv window which is unique to the port 
-        cv2.namedWindow("window"+str(self.windowName))
+        cv2.namedWindow("window" + str(self.windowName))
         self.remainingBytes = 0
         self.frame_id = 0
        
@@ -54,7 +54,7 @@ class ImageClient(asyncore.dispatcher):
         imdata = pickle.loads(self.buffer)
         bigDepth = cv2.resize(imdata, (0,0), fx=2, fy=2, interpolation=cv2.INTER_NEAREST) 
         cv2.putText(bigDepth, str(self.timestamp), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (65536), 2, cv2.LINE_AA)
-        cv2.imshow("window"+str(self.windowName), bigDepth)
+        cv2.imshow("window" + str(self.windowName), bigDepth)
         cv2.waitKey(1)
         self.buffer = bytearray()
         self.frame_id += 1
@@ -80,14 +80,14 @@ class EtherSenseClient(asyncore.dispatcher):
         return True
         
     def handle_connect(self):
-        print("connection recvied")
+        print("connection received")
 
     def handle_accept(self):
         pair = self.accept()
         #print(self.recv(10))
         if pair is not None:
             sock, addr = pair
-            print ('Incoming connection from %s' % repr(addr))
+            print ("Incoming connection from %s" % repr(addr))
             # when a connection is attempted, delegate image receival to the ImageClient 
             handler = ImageClient(sock, addr)
 
@@ -98,7 +98,7 @@ def multi_cast_message(ip_address, port, message):
     connections = {}
     try:
         # Send data to the multicast group
-        print('sending "%s"' % message + str(multicast_group))
+        print("sending '%s'" % message + str(multicast_group))
         sent = sock.sendto(message.encode(), multicast_group)
    
         # defer waiting for a response using Asyncore
@@ -108,9 +108,9 @@ def multi_cast_message(ip_address, port, message):
         # Look for responses from all recipients
         
     except socket.timeout:
-        print('timed out, no more responses')
+        print("timed out, no more responses")
     finally:
-        print(sys.stderr, 'closing socket')
+        print(sys.stderr, "closing socket")
         sock.close()
 
 if __name__ == '__main__':

@@ -42,7 +42,6 @@ def openPipeline():
     return pipeline
 
 class DevNullHandler(asyncore.dispatcher_with_send):
-
     def handle_read(self):
         print(self.recv(1024))
 
