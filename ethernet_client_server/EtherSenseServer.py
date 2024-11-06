@@ -32,6 +32,7 @@ def getDepthAndTimestamp(pipeline, depth_filter):
         return depthMat, ts
     else:
         return None, None
+    
 def openPipeline():
     cfg = rs.config()
     cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
@@ -41,7 +42,6 @@ def openPipeline():
     return pipeline
 
 class DevNullHandler(asyncore.dispatcher_with_send):
-
     def handle_read(self):
         print(self.recv(1024))
 
