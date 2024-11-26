@@ -53,10 +53,13 @@ class ImageClient(asyncore.dispatcher):
 
     def handle_frame(self):
         # convert the frame from string to numerical data
-        imdata = pickle.loads(self.buffer)
-        bigDepth = cv2.resize(imdata, (0,0), fx=2, fy=2, interpolation=cv2.INTER_NEAREST) 
-        cv2.putText(bigDepth, str(self.timestamp), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (65536), 2, cv2.LINE_AA)
-        cv2.imshow("window" + str(self.windowName), bigDepth)
+        depth_image = pickle.loads(self.buffer)
+        big_depth_image = cv2.resize(depth_image, (0,0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST) 
+
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(big_depth_image, alpha=0.03), cv2.COLORMAP_JET)
+
+        cv2.putText(depth_colormap, str(self.timestamp), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.imshow("window of port" + str(self.windowName), depth_colormap)
         cv2.waitKey(1)
         self.buffer = bytearray()
         self.frame_id += 1
