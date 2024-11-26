@@ -29,12 +29,14 @@ class ImageClient(asyncore.dispatcher):
         self.buffer = bytearray()
         self.windowName = self.port
         # open cv window which is unique to the port 
-        cv2.namedWindow("window" + str(self.windowName))
+        # and named after port
+        cv2.namedWindow("window of port" + str(self.windowName))
         self.remainingBytes = 0
         self.frame_id = 0
        
     def handle_read(self):
-        if self.remainingBytes == 0:
+        # start reading new frame
+        if self.remainingBytes == 0:  
             # get the expected frame size
             self.frame_length = struct.unpack('<I', self.recv(4))[0]
             # get the timestamp of the current frame
@@ -58,6 +60,7 @@ class ImageClient(asyncore.dispatcher):
         cv2.waitKey(1)
         self.buffer = bytearray()
         self.frame_id += 1
+
     def readable(self):
         return True
 
@@ -84,10 +87,10 @@ class EtherSenseClient(asyncore.dispatcher):
 
     def handle_accept(self):
         pair = self.accept()
-        #print(self.recv(10))
+        # print(self.recv(10))
         if pair is not None:
             sock, addr = pair
-            print ("Incoming connection from %s" % repr(addr))
+            print("Incoming connection from %s" % repr(addr))
             # when a connection is attempted, delegate image receival to the ImageClient 
             handler = ImageClient(sock, addr)
 
@@ -103,6 +106,9 @@ def multi_cast_message(ip_address, port, message):
    
         # defer waiting for a response using Asyncore
         client = EtherSenseClient()
+        # start channel services: asyncore.dispather (EtherSenseClient) as well.
+        # 1. get to readable, writable methods
+        # 2. get to handle_accept
         asyncore.loop()
 
         # Look for responses from all recipients
