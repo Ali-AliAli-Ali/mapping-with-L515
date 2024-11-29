@@ -16,15 +16,19 @@ port = 1024
 chunk_size = 4096
 #rs.log_to_console(rs.log_severity.debug)
 
-def getDepthColorAndTimestamp(pipeline, depth_filter, w, h):
+def getDepthAndTimestamp(pipeline, depth_filter, w, h):
     frames = pipeline.wait_for_frames()
     # take owner ship of the frame for further processing
     frames.keep()
     depth_frame = frames.get_depth_frame()
-    '''color_frame = frames.get_color_frame()'''
+    '''
+    color_frame = frames.get_color_frame()
+    '''
     
     if depth_frame: 
-        ''' and color_frame: '''
+        '''
+          and color_frame:
+        '''
         depth_frame = depth_filter.process(depth_frame)
         # take owner ship of the frame for further processing
         depth_frame.keep()
@@ -34,14 +38,8 @@ def getDepthColorAndTimestamp(pipeline, depth_filter, w, h):
             depth_frame.profile).get_intrinsics()
         w, h = depth_intrinsics.width, depth_intrinsics.height
 
-        # represent the frame as a numpy array
-        depth_image = np.asanyarray(depth_frame.get_data())
-        '''
-        color_image = np.asanyarray(color_frame.get_data())
-        '''
-
         ts = frames.get_timestamp()
-        return depth_image, ts, w, h
+        return depth_frame, ts, w, h
         '''
         return depth_image, color_image, ts 
         '''
@@ -67,8 +65,9 @@ def openPipeline():
         exit(0)
 
     cfg.enable_stream(rs.stream.depth, rs.format.z16, 30)
+    '''
     cfg.enable_stream(rs.stream.color, rs.format.bgr8, 30)
-
+    '''
     # Start streaming
     pipeline.start(cfg)
     # sensor = pipeline_profile.get_device().first_depth_sensor()
@@ -97,9 +96,11 @@ class EtherSenseServer(asyncore.dispatcher):
         
         profile = self.pipeline.get_active_profile()
         depth_profile = rs.video_stream_profile(profile.get_stream(rs.stream.depth))
-        depth_intrinsics = depth_profile.get_intrinsics()
+        self.w, self.h = depth_profile.width(), depth_profile.height()
+        '''
+        depth_intrinsics = depth_profile.get_intrinsics()  
         self.w, self.h = depth_intrinsics.width, depth_intrinsics.height
-
+        '''
         # Processing blocks: reduce the resolution of the depth image using post processing
         self.pc = rs.pointcloud()
         
@@ -124,14 +125,14 @@ class EtherSenseServer(asyncore.dispatcher):
         return True
 
     def update_frame(self):
-        depth_image, timestamp, self.w, self.h = getDepthColorAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h)
+        depth_frame, timestamp, self.w, self.h = getDepthAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h)
         '''
-        depth_image, color_image, timestamp, self.w, self.h = getDepthColorAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h) 
+        depth_image, color_image, timestamp, self.w, self.h = getDepthAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h) 
         if (depth_image is not None) and (color_image is not None): 
         '''
-        if depth_image is not None:
+        if depth_frame is not None:
                 self.color_source = np.asanyarray(
-                    self.colorizer.colorize(depth_image).get_data()
+                    self.colorizer.colorize(depth_frame).get_data()
                 )  # depth_colormap
 
                 '''
@@ -140,8 +141,8 @@ class EtherSenseServer(asyncore.dispatcher):
                 else:
                     mapped_frame, color_source = depth_frame, depth_colormap
                 '''
-                points = self.pc.calculate(depth_image)
-                self.pc.map_to(depth_image)  # map points from pointcloud to given colored frame (colorize 3d view)
+                points = self.pc.calculate(depth_frame)
+                self.pc.map_to(depth_frame)  # map points from pointcloud to given colored frame (colorize 3d view)
 
                 # Pointcloud data to arrays
                 verts = np.asanyarray(
@@ -149,10 +150,10 @@ class EtherSenseServer(asyncore.dispatcher):
                 ).view(np.float32).reshape(-1, 3)  # xyz
                 texcoords = np.asanyarray(
                     points.get_texture_coordinates()
-                ).view(np.float32).reshape(-1, 2)  # uv
+                ).view(np.float32).reshape(-1, 2)  # uv   IT RETURNS ZEROS
                 
                 # convert the depth image to a string for broadcast
-                data = pickle.dumps(depth_image)
+                data = pickle.dumps(np.asanyarray(depth_frame.get_data()))
                 # capture the lenght of the data portion of the message	
                 length = struct.pack('<I', len(data))
                 # include the current timestamp for the frame
