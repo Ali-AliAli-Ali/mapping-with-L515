@@ -16,7 +16,7 @@ port = 1024
 chunk_size = 4096
 #rs.log_to_console(rs.log_severity.debug)
 
-def getDepthAndTimestamp(pipeline, depth_filter, w, h):
+def getDepthAndTimestamp(pipeline, depth_filter):
     frames = pipeline.wait_for_frames()
     # take owner ship of the frame for further processing
     frames.keep()
@@ -39,12 +39,12 @@ def getDepthAndTimestamp(pipeline, depth_filter, w, h):
         w, h = depth_intrinsics.width, depth_intrinsics.height
 
         ts = frames.get_timestamp()
-        return depth_frame, ts, w, h
+        return depth_frame, ts
         '''
         return depth_image, color_image, ts 
         '''
     else:
-        return None, None, w, h
+        return None, None
 
 def openPipeline():
     # Configure depth and color streams
@@ -125,7 +125,7 @@ class EtherSenseServer(asyncore.dispatcher):
         return True
 
     def update_frame(self):
-        depth_frame, timestamp, self.w, self.h = getDepthAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h)
+        depth_frame, timestamp = getDepthAndTimestamp(self.pipeline, self.decimate_filter)
         '''
         depth_image, color_image, timestamp, self.w, self.h = getDepthAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h) 
         if (depth_image is not None) and (color_image is not None): 
