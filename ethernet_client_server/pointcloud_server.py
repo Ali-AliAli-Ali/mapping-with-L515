@@ -135,23 +135,6 @@ class EtherSenseServer(asyncore.dispatcher):
                     self.colorizer.colorize(depth_frame).get_data()
                 )  # depth_colormap
 
-                '''
-                if state.color:
-                    mapped_frame, color_source = color_frame, color_image
-                else:
-                    mapped_frame, color_source = depth_frame, depth_colormap
-                '''
-                points = self.pc.calculate(depth_frame)
-                self.pc.map_to(depth_frame)  # map points from pointcloud to given colored frame (colorize 3d view)
-
-                # Pointcloud data to arrays
-                verts = np.asanyarray(
-                    points.get_vertices()
-                ).view(np.float32).reshape(-1, 3)  # xyz
-                texcoords = np.asanyarray(
-                    points.get_texture_coordinates()
-                ).view(np.float32).reshape(-1, 2)  # uv   IT RETURNS ZEROS
-                
                 # convert the depth image to a string for broadcast
                 data = pickle.dumps(np.asanyarray(depth_frame.get_data()))
                 # capture the lenght of the data portion of the message	
