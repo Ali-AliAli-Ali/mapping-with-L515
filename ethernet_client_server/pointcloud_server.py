@@ -102,18 +102,19 @@ class EtherSenseServer(asyncore.dispatcher):
         self.w, self.h = depth_intrinsics.width, depth_intrinsics.height
         '''
         # Processing blocks: reduce the resolution of the depth image using post processing
+        '''
         self.pc = rs.pointcloud()
-        
+        '''
         self.decimate_filter = rs.decimation_filter()
         self.decimate_filter.set_option(rs.option.filter_magnitude, 2)
         '''
          decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)   
         # state.decimate==1 when initializing, and server initializes once at worktime (I hope so)
-        '''
+        
         self.colorizer = rs.colorizer()
 
         self.out = np.empty((self.h, self.w, 3), dtype=np.uint8)
-
+        '''
         self.frame_data = ''
         self.connect((address[0], 1024))
         self.packet_id = 0 
@@ -129,20 +130,37 @@ class EtherSenseServer(asyncore.dispatcher):
         '''
         depth_image, color_image, timestamp, self.w, self.h = getDepthAndTimestamp(self.pipeline, self.decimate_filter, self.w, self.h) 
         if (depth_image is not None) and (color_image is not None): 
+        
+        pc = rs.pointcloud()
+        points = pc.calculate(depth_frame)
         '''
         if depth_frame is not None:
-                self.color_source = np.asanyarray(
-                    self.colorizer.colorize(depth_frame).get_data()
-                )  # depth_colormap
+            '''
+            self.color_source = np.asanyarray(
+                self.colorizer.colorize(depth_frame).get_data()
+            )  # depth_colormap
+            '''
+            # convert the depth frame to a string for broadcast
+            depth_intrinsics = rs.video_stream_profile(
+                depth_frame.profile
+            ).get_intrinsics()
+            data = {
+                'depth_image': np.asanyarray(depth_frame.get_data()),
+                'width': depth_intrinsics.width,
+                'height': depth_intrinsics.height,
+                'fx': depth_intrinsics.fx,
+                'fy': depth_intrinsics.fy,
+                'ppx': depth_intrinsics.ppx,
+                'ppy': depth_intrinsics.ppy
+            }
+            data_dumped = pickle.dumps(data)
 
-                # convert the depth image to a string for broadcast
-                data = pickle.dumps(np.asanyarray(depth_frame.get_data()))
-                # capture the lenght of the data portion of the message	
-                length = struct.pack('<I', len(data))
-                # include the current timestamp for the frame
-                ts = struct.pack('<d', timestamp)
-                # for the message for transmission
-                self.frame_data = b''.join([length, ts, data])
+            # capture the lenght of the data portion of the message	
+            length = struct.pack('<I', len(data_dumped))
+            # include the current timestamp for the frame
+            ts = struct.pack('<d', timestamp)
+            # for the message for transmission
+            self.frame_data = b''.join([length, ts, data_dumped])
 
     def handle_write(self):
 	    # first time the handle_write is called
