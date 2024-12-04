@@ -153,7 +153,7 @@ class ImageClient(asyncore.dispatcher):
             pc.map_to(self.depth_frame)  
             '''
             self.points = self.create_point_cloud(depth_image, intrinsics)
-            self.render()
+            self.render(intrinsics)
 
             self.buffer = bytearray()
             self.frame_id += 1
@@ -168,12 +168,11 @@ class ImageClient(asyncore.dispatcher):
         points = []
 
         # walk through each pixel of depth image
-        for v in range(h):
-            for u in range(w):
-                z = depth_image[v, u] 
-                # 2D -> 3D
-                x = (u - ppx) * z / fx
-                y = (v - ppy) * z / fy
+        for h_pixel in range(h):
+            for w_pixel in range(w):
+                z = depth_image[h_pixel, w_pixel] 
+                x = (w_pixel - ppx) * z / fx
+                y = (h_pixel - ppy) * z / fy
                 
                 points.append([x, y, z])
 
@@ -185,6 +184,7 @@ class ImageClient(asyncore.dispatcher):
 
 
     # Viewer
+
     def mouse_cb(self, event, x, y, flags, param):
 
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -206,7 +206,6 @@ class ImageClient(asyncore.dispatcher):
             state.mouse_btns[2] = False
 
         if event == cv2.EVENT_MOUSEMOVE:
-
             h, w = self.out.shape[:2]
             dx, dy = x - state.prev_mouse[0], y - state.prev_mouse[1]
 
@@ -238,8 +237,7 @@ class ImageClient(asyncore.dispatcher):
 
         # ignore divide by zero for invalid depth
         with np.errstate(divide='ignore', invalid='ignore'):
-            proj = v[:, :-1] / v[:, -1, np.newaxis] * \
-                (w * view_aspect, self.h) + (w/2.0, self.h/2.0)
+            proj = v[:, :-1] / v[:, -1, np.newaxis] * (w * view_aspect, h) + (w/2.0, h/2.0)
 
         # near clipping
         znear = 0.03
@@ -307,11 +305,11 @@ class ImageClient(asyncore.dispatcher):
     def frustum(self, intrinsics, color=(0x40, 0x40, 0x40)):
         """draw camera's frustum"""
         orig = self.view([0, 0, 0])
-        w, h = intrinsics.width, intrinsics.height
+        w, h = intrinsics['w'], intrinsics['h']
 
         for d in range(1, 6, 2):
             def get_point(x, y):
-                p = rs.rs2_deproject_pixel_to_point(intrinsics, [x, y], d)
+                p = rs.rs2_deproject_pixel_to_point(intrinsics, [x, y], d)  # get inside to replace with custom function
                 self.line3d(self.out, orig, self.view(p), color)
                 return p
 
@@ -368,15 +366,16 @@ class ImageClient(asyncore.dispatcher):
         self.out[i[m], j[m]] = color[u[m], v[m]]
     
     
-    def render(self):   # Render
+    
+    def render(self, intrinsics):   # Render
         now = time.time()
 
-        w, h = self.depth_intrinsics.width, self.depth_intrinsics.height
+        w, h = intrinsics['w'], intrinsics['h']
 
         self.out.fill(0)
 
         self.grid((0, 0.5, 1), size=1, n=10)
-        self.frustum(self.depth_intrinsics)
+        self.frustum(intrinsics)
         self.axes(self.view([0, 0, 0]), state.rotation, size=0.1, thickness=1)
 
         verts = np.asanyarray(
