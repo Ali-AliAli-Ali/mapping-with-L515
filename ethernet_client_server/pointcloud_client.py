@@ -126,9 +126,45 @@ class ImageClient(asyncore.dispatcher):
 
     def handle_frame(self):
         if not state.paused:
-            # convert the frame from string to numerical data
-            self.depth_frame = pickle.loads(self.buffer)
-            # big_depth_frame = cv2.resize(depth_frame, (0,0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST) 
+            # convert the frame from byte string to frame
+            ctx = rs.context()
+            
+            soft_dev = rs.software_device()
+            soft_dev.register_info(rs.camera_info.name, "Intel RealSense L515")  # TODO (?): add another register_info
+            depth_sensor: rs.software_sensor = soft_dev.add_sensor("Depth")
+
+            received_data = pickle.loads(self.buffer)    
+            depth_image = received_data['depth_image']     # TODO: create frame out of it
+
+            intrinsics_dict = {
+                'w':   received_data['width'],
+                'h':   received_data['height'],
+                'fx':  received_data['fx'],
+                'fy':  received_data['fy'],
+                'ppx': received_data['ppx'],
+                'ppy': received_data['ppy']
+            }
+
+            intrinsics = rs.intrinsics()
+            for key in intrinsics_dict:
+                setattr(intrinsics, key, intrinsics_dict[key])
+
+            depth_stream = rs.video_stream()
+            depth_stream.type = rs.stream.depth
+            depth_stream.width = intrinsics.width
+            depth_stream.height = intrinsics.height
+            depth_stream.fps = 30
+            depth_stream.bpp = 2
+            depth_stream.fmt = rs.format.z16
+            depth_stream.intrinsics = intrinsics
+            depth_stream.index = 0
+            depth_stream.uid = 1312  # TODO: check if correct
+
+            depth_profile = depth_sensor.add_video_stream(depth_stream)
+
+            soft_dev.add_to(ctx)
+
+
 
             self.depth_intrinsics = rs.video_stream_profile(
                 self.depth_frame.profile
