@@ -126,34 +126,60 @@ class ImageClient(asyncore.dispatcher):
 
     def handle_frame(self):
         if not state.paused:
-            # convert the frame from string to numerical data
-            self.depth_frame = pickle.loads(self.buffer)
+            received_data = pickle.loads(self.buffer)
+            depth_image = received_data['depth_image']
+            intrinsics = {
+                'w':   received_data['width'],
+                'h':   received_data['height'],
+                'fx':  received_data['fx'],
+                'fy':  received_data['fy'],
+                'ppx': received_data['ppx'],
+                'ppy': received_data['ppy']
+            }
             # big_depth_frame = cv2.resize(depth_frame, (0,0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST) 
 
-            self.depth_intrinsics = rs.video_stream_profile(
-                self.depth_frame.profile
-            ).get_intrinsics()
-            w, h = self.depth_intrinsics.width, self.depth_intrinsics.height
-            self.out = np.empty((h, w, 3), dtype=np.uint8)
+            self.out = np.empty((intrinsics['h'], intrinsics['w'], 3), dtype=np.uint8)
 
             self.depth_colormap = cv2.applyColorMap(
-                cv2.convertScaleAbs(self.depth_frame, alpha=0.03), 
+                cv2.convertScaleAbs(depth_image, alpha=0.03), 
                 cv2.COLORMAP_JET
             )
 
             decimate = rs.decimation_filter()
             decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
+            '''
             pc = rs.pointcloud()
             self.points = pc.calculate(self.depth_frame)
-            # map points from pointcloud to given colored frame (colorize 3d view)
             pc.map_to(self.depth_frame)  
-            # Pointcloud data to arrays
-        
+            '''
+            self.points = self.create_point_cloud(depth_image, intrinsics)
             self.render()
 
             self.buffer = bytearray()
             self.frame_id += 1
 
+    def create_point_cloud(self, depth_image, intrinsics):
+        h, w = intrinsics['h'], intrinsics['w']
+        fx = intrinsics['fx']
+        fy = intrinsics['fy']
+        ppx = intrinsics['ppx']
+        ppy = intrinsics['ppy']
+
+        points = []
+
+        # walk through each pixel of depth image
+        for v in range(h):
+            for u in range(w):
+                z = depth_image[v, u] 
+                # 2D -> 3D
+                x = (u - ppx) * z / fx
+                y = (v - ppy) * z / fy
+                
+                points.append([x, y, z])
+
+        return np.array(points)
+
+    
     def readable(self):
         return True
 
@@ -421,80 +447,5 @@ port = 1024
 chunk_size = 4096
 w, h = 640, 480
 multi_cast_message(mc_ip_address, port, "EtherSensePing")
-
-
-'''    It is all done on server:
-
-# Configure depth and color streams
-pipeline = rs.pipeline()
-config = rs.config()
-
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
-
-found_rgb = False
-for s in device.sensors:
-    if s.get_info(rs.camera_info.name) == 'RGB Camera':
-        found_rgb = True
-        break
-if not found_rgb:
-    print("The demo requires Depth camera with Color sensor")
-    exit(0)
-
-config.enable_stream(rs.stream.depth, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, rs.format.bgr8, 30)
-
-# Start streaming
-pipeline.start(config)
-
-# Get stream profile and camera intrinsics
-profile = pipeline.get_active_profile()
-depth_profile = rs.video_stream_profile(profile.get_stream(rs.stream.depth))
-depth_intrinsics = depth_profile.get_intrinsics()
-w, h = depth_intrinsics.width, depth_intrinsics.height
-
-# Processing blocks
-pc = rs.pointcloud()
-decimate = rs.decimation_filter()
-decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
-colorizer = rs.colorizer()
-
-
-
-while True:
-    # Grab camera data
-        # Wait for a coherent pair of frames: depth and color
-        frames = pipeline.wait_for_frames()
-
-        depth_frame = frames.get_depth_frame()
-        color_frame = frames.get_color_frame()
-
-        depth_frame = decimate.process(depth_frame)
-
-        # Grab new intrinsics (may be changed by decimation)
-        depth_intrinsics = rs.video_stream_profile(
-            depth_frame.profile).get_intrinsics()
-        w, h = depth_intrinsics.width, depth_intrinsics.height
-
-        depth_image = np.asanyarray(depth_frame.get_data())
-        color_image = np.asanyarray(color_frame.get_data())
-
-        depth_colormap = np.asanyarray(
-            colorizer.colorize(depth_frame).get_data())
-
-        if state.color:
-            mapped_frame, color_source = color_frame, color_image
-        else:
-            mapped_frame, color_source = depth_frame, depth_colormap
-
-        points = pc.calculate(depth_frame)
-        pc.map_to(mapped_frame)
-        
-        if state.color:
-            mapped_frame, color_source = color_frame, color_image
-        else:
-            mapped_frame, color_source = depth_frame, depth_colormap
-'''
 
                         
