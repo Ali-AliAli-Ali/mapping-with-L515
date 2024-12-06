@@ -151,7 +151,9 @@ class EtherSenseServer(asyncore.dispatcher):
                 'fx': depth_intrinsics.fx,
                 'fy': depth_intrinsics.fy,
                 'ppx': depth_intrinsics.ppx,
-                'ppy': depth_intrinsics.ppy
+                'ppy': depth_intrinsics.ppy,
+                'coeffs': depth_intrinsics.coeffs, 
+                'model': depth_intrinsics.model
             }
             data_dumped = pickle.dumps(data)
 
