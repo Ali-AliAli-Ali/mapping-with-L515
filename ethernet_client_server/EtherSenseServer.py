@@ -43,7 +43,7 @@ def openPipeline():
 
     pipeline = rs.pipeline()
     pipeline_profile = pipeline.start(cfg)
-    sensor = pipeline_profile.get_device().first_depth_sensor() # what is sensor for?
+    sensor = pipeline_profile.get_device().first_depth_sensor()
     print("Depth sensor available:", sensor)
     return pipeline
 
