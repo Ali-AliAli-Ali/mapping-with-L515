@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import pyrealsense2 as rs
 import sys, getopt
 import asyncore
@@ -40,7 +39,7 @@ def getDepthAndTimestamp(pipeline, depth_filter):
 
 def openPipeline():
     cfg = rs.config()
-    cfg.enable_stream(rs.stream.depth, 320, 240, rs.format.z16, 30)
+    cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
 
     pipeline = rs.pipeline()
     pipeline_profile = pipeline.start(cfg)
