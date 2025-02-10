@@ -85,13 +85,13 @@ class EtherSenseServer(asyncore.dispatcher):
         depth, timestamp = getDepthAndTimestamp(self.pipeline, self.decimate_filter)
         if depth is not None:
             # convert the depth image to a string for broadcast
-                depth_data = pickle.dumps(depth)
+            depth_data = pickle.dumps(depth)
             # capture the lenght of the data portion of the message	
-                depth_length = struct.pack('<I', len(depth_data))
+            depth_length = struct.pack('<I', len(depth_data))
             # include the current timestamp for the frame
-                ts = struct.pack('<d', timestamp)
+            ts = struct.pack('<d', timestamp)
             # for the message for transmission
-                self.frame_data_depth = b''.join([depth_length, ts, depth_data])
+            self.frame_data_depth = b''.join([depth_length, ts, depth_data])
 
     def handle_write(self):
 	    # first time the handle_write is called
