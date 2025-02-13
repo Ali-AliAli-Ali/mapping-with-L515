@@ -1,8 +1,32 @@
+'''
+OpenCV and Numpy Point cloud Software Renderer
+
+This sample is mostly for demonstration and educational purposes.
+It really doesn't offer the quality or performance that can be
+achieved with hardware acceleration.
+
+Usage:
+------
+Mouse: 
+    Drag with left button to rotate around pivot (thick small axes), 
+    with right button to translate and the wheel to zoom.
+
+Keyboard: 
+    [p]     Pause
+    [r]     Reset View
+    [d]     Cycle through decimation values
+    [z]     Toggle point scaling
+    [c]     Toggle color source
+    [s]     Save PNG (./out.png)
+    [e]     Export points to ply (./out.ply)
+    [q\ESC] Quit
+'''
+
 import math
 import time
 import cv2
 import numpy as np
-import pyrealsense2 as rs
+import pyrealsense2 as rs2
 import sys, getopt
 import asyncore
 import pickle
@@ -101,7 +125,7 @@ class ImageClient(asyncore.dispatcher):
         self.port = source[1]
         self.buffer = bytearray()
 
-        cv2.namedWindow(state.WIN_NAME) #, cv2.WINDOW_AUTOSIZE)
+        cv2.namedWindow(state.WIN_NAME, cv2.WINDOW_AUTOSIZE)
         cv2.setMouseCallback(state.WIN_NAME, self.mouse_cb)
 
         self.remainingBytes = 0
@@ -129,12 +153,14 @@ class ImageClient(asyncore.dispatcher):
             received_data = pickle.loads(self.buffer)
             depth_image = received_data['depth_image']
             intrinsics = {
-                'w':   received_data['width'],
-                'h':   received_data['height'],
-                'fx':  received_data['fx'],
-                'fy':  received_data['fy'],
-                'ppx': received_data['ppx'],
-                'ppy': received_data['ppy']
+                'w':      received_data['width'],
+                'h':      received_data['height'],
+                'fx':     received_data['fx'],
+                'fy':     received_data['fy'],
+                'ppx':    received_data['ppx'],
+                'ppy':    received_data['ppy'],
+                'coeffs': received_data['coeffs'],
+                'model':  received_data['model']
             }
             # big_depth_frame = cv2.resize(depth_frame, (0,0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST) 
 
@@ -145,10 +171,10 @@ class ImageClient(asyncore.dispatcher):
                 cv2.COLORMAP_JET
             )
 
-            decimate = rs.decimation_filter()
-            decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
+            decimate = rs2.decimation_filter()
+            decimate.set_option(rs2.option.filter_magnitude, 2 ** state.decimate)
             '''
-            pc = rs.pointcloud()
+            pc = rs2.pointcloud()
             self.points = pc.calculate(self.depth_frame)
             pc.map_to(self.depth_frame)  
             '''
@@ -305,11 +331,23 @@ class ImageClient(asyncore.dispatcher):
     def frustum(self, intrinsics, color=(0x40, 0x40, 0x40)):
         """draw camera's frustum"""
         orig = self.view([0, 0, 0])
-        w, h = intrinsics['w'], intrinsics['h']
+        w, h = intrinsics['w'], intrinsics['h'] 
 
         for d in range(1, 6, 2):
+            def deproject_pixel_to_point(intrin, pixel, depth):
+                x = (pixel[0] - intrin['ppx']) / intrin['fx']
+                y = (pixel[1] - intrin['ppy']) / intrin['fy']
+                if intrinsics['model'] == 'RS2_DISTORTION_INVERSE_BROWN_CONRADY':
+                    r2 = x*x + y*y
+                    f = 1 + intrin['coeffs'][0]*r2 + intrin['coeffs'][1]*r2*r2 + intrin['coeffs'][4]*r2*r2*r2
+                    ux = x*f + 2*intrin['coeffs'][2]*x*y + intrin['coeffs'][3]*(r2 + 2*x*x)
+                    uy = y*f + 2*intrin['coeffs'][3]*x*y + intrin['coeffs'][2]*(r2 + 2*y*y)
+                    x = ux
+                    y = uy
+                return [depth * x, depth * y, depth]
+
             def get_point(x, y):
-                p = rs.rs2_deproject_pixel_to_point(intrinsics, [x, y], d)  # get inside to replace with custom function
+                p = deproject_pixel_to_point(intrinsics, [x, y], d)  # get inside to replace with custom function
                 self.line3d(self.out, orig, self.view(p), color)
                 return p
 
@@ -379,11 +417,11 @@ class ImageClient(asyncore.dispatcher):
         self.axes(self.view([0, 0, 0]), state.rotation, size=0.1, thickness=1)
 
         verts = np.asanyarray(
-            self.points.get_vertices()
+            self.points#.get_vertices()
         ).view(np.float32).reshape(-1, 3)  # xyz
         texcoords = np.asanyarray(
-            self.points.get_texture_coordinates()
-        ).view(np.float32).reshape(-1, 2)  # uv   IT RETURNS ZEROS
+            self.points#.get_texture_coordinates()
+        ).view(np.float32).reshape(-1, 2)  # uv 
 
         
         if not state.scale or self.out.shape[:2] == (h, w):
@@ -417,7 +455,7 @@ class ImageClient(asyncore.dispatcher):
 
         if key == ord("d"):
             state.decimate = (state.decimate + 1) % 3
-            self.decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
+            self.decimate.set_option(rs2.option.filter_magnitude, 2 ** state.decimate)
 
         if key == ord("z"):
             state.scale ^= True
@@ -445,6 +483,11 @@ local_ip_address = "172.20.10.2"
 port = 1024
 chunk_size = 4096
 w, h = 640, 480
-multi_cast_message(mc_ip_address, port, "EtherSensePing")
 
+
+def main(argv):
+    multi_cast_message(mc_ip_address, port, "EtherSensePing")
+    
+if __name__ == '__main__':
+    main(sys.argv[1:])
                         
