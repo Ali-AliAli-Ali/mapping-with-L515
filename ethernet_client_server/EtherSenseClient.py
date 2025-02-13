@@ -53,9 +53,13 @@ class ImageClient(asyncore.dispatcher):
 
     def handle_frame(self):
         # convert the frame from string to numerical data
-        depth_image = pickle.loads(self.buffer)
-        big_depth_image = cv2.resize(depth_image, (0,0), fx=4, fy=4, interpolation=cv2.INTER_NEAREST) 
-
+        depth_data = pickle.loads(self.buffer)
+        depth_image = depth_data['depth_image']
+        big_depth_image = cv2.resize(depth_image, (0,0), fx=2, fy=2, interpolation=cv2.INTER_NEAREST) 
+        # for comfortable view take scaling;
+        # - for resolution 1024x768 no scaling needed (high latency otherwise),
+        # - fx=2, fy=2 for resolution 640x480,
+        # - fx=4, fy=4 for resolution 360x240.
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(big_depth_image, alpha=0.03), cv2.COLORMAP_JET)
 
         cv2.putText(depth_colormap, str(self.timestamp), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
